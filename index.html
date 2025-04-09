@@ -93,8 +93,10 @@
 
     function startRound() {
       if (!hasJoined) return;
+      console.log("🟢 startRound cliqué");
       socket.emit("startRound");
     }
+
 
     function submitHint() {
       const hint = document.getElementById("hintInput").value;
