@@ -12,11 +12,11 @@ app.use(express.static(__dirname));
 app.use('/scenes', express.static(path.join(__dirname, 'scenes')));
 
 let players = [];
-let scenes = []; // liste des scènes dispos en couples
+let scenes = [];
 let blindPlayer = null;
 let votes = {};
-let scores = {}; // stockage des scores
-let hints = {}; // stockage des indices
+let scores = {};
+let hints = {};
 
 function loadScenePairs() {
   const scenesPath = path.join(__dirname, 'scenes');
@@ -56,13 +56,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRound", () => {
+    console.log("📢 startRound reçu");
     if (players.length < 3 || scenes.length === 0) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
     const sceneBase = scenes[Math.floor(Math.random() * scenes.length)];
     const selected = getScenePair(sceneBase);
 
-    hints = {}; // reset indices
-    votes = {}; // reset votes
+    hints = {};
+    votes = {};
 
     for (const player of players) {
       const image = player.name === blindPlayer ? selected.blind : selected.normal;
