@@ -16,6 +16,10 @@
       font-size: 16px;
       margin: 10px;
     }
+    #scene img {
+      max-width: 60%;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -33,12 +37,14 @@
   </div>
 
   <div id="players"></div>
+  <button id="startBtn" onclick="startRound()" style="display:none">Démarrer la manche</button>
+  <div id="scene"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-
     let hasJoined = false;
+    let playerName = null;
 
     function join() {
       if (hasJoined) return;
@@ -52,12 +58,32 @@
       localStorage.setItem("oculaire_avatar", avatar);
       document.getElementById("login").style.display = "none";
       hasJoined = true;
+      playerName = name;
     }
 
     socket.on("players", (players) => {
       document.getElementById("players").innerHTML =
         "<h3>Joueurs connectés :</h3>" +
         players.map(p => `<div>${p.avatar} ${p.name}</div>`).join("");
+
+      if (players.length >= 3) {
+        document.getElementById("startBtn").style.display = "inline-block";
+      } else {
+        document.getElementById("startBtn").style.display = "none";
+      }
+    });
+
+    function startRound() {
+      socket.emit("startRound");
+    }
+
+    socket.on("newRound", ({ blindPlayer, currentScene }) => {
+      const sceneDiv = document.getElementById("scene");
+      if (playerName === blindPlayer) {
+        sceneDiv.innerHTML = "<h2>Tu es l'aveugle 👁️ ! Tu ne vois pas la scène.</h2>";
+      } else {
+        sceneDiv.innerHTML = `<h2>Voici la scène :</h2><img src="${currentScene}" alt="Scène">`;
+      }
     });
 
     // Auto-reconnexion uniquement si le joueur est encore listé côté serveur
