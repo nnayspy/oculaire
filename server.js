@@ -9,6 +9,8 @@ const io = new Server(server);
 app.use(express.static(__dirname));
 
 let players = [];
+let currentScene = null;
+let blindPlayer = null;
 
 io.on("connection", (socket) => {
   console.log("✅ Connexion :", socket.id);
@@ -30,8 +32,20 @@ io.on("connection", (socket) => {
     io.emit("players", players);
   });
 
+  socket.on("startRound", () => {
+    if (players.length < 3) return;
+    blindPlayer = players[Math.floor(Math.random() * players.length)].name;
+    currentScene = "scene1.jpg"; // à remplacer par une logique d'aléatoire plus tard
+    io.emit("newRound", { blindPlayer, currentScene });
+  });
+
   socket.on("disconnect", () => {
-    console.log("❌ Déconnexion :", socket.id);
+    const index = players.findIndex(p => p.id === socket.id);
+    if (index !== -1) {
+      console.log("❌ Déconnexion de :", players[index].name);
+      players.splice(index, 1);
+      io.emit("players", players);
+    }
   });
 });
 
