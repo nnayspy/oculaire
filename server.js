@@ -57,7 +57,7 @@ io.on("connection", (socket) => {
 
   socket.on("startRound", () => {
     console.log("📢 startRound reçu");
-    if (players.length < 3 || scenes.length === 0) return;
+    if (players.length < 2 || scenes.length === 0) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
     const sceneBase = scenes[Math.floor(Math.random() * scenes.length)];
     const selected = getScenePair(sceneBase);
