@@ -15,6 +15,7 @@ let players = [];
 let currentScene = null;
 let blindPlayer = null;
 let votes = {};
+let scores = {}; // Nouveau : stockage des scores
 
 function getRandomScene() {
   const scenesPath = path.join(__dirname, 'scenes');
@@ -37,10 +38,12 @@ io.on("connection", (socket) => {
         name: data.name,
         avatar: data.avatar
       });
+      scores[data.name] = 0; // Initialiser le score à 0
     }
 
     console.log(`👤 ${data.name} est connecté`);
     io.emit("players", players);
+    io.emit("scores", scores);
   });
 
   socket.on("startRound", () => {
@@ -62,7 +65,22 @@ io.on("connection", (socket) => {
         results[v] = (results[v] || 0) + 1;
       }
       const mostVoted = Object.entries(results).sort((a, b) => b[1] - a[1])[0][0];
+
+      // Mise à jour des scores
+      if (mostVoted === blindPlayer) {
+        // Tous les votants ont 1 point
+        for (let voterName of Object.keys(votes)) {
+          scores[voterName] += 1;
+        }
+      } else {
+        // L'aveugle marque 2 points
+        if (scores[blindPlayer] !== undefined) {
+          scores[blindPlayer] += 2;
+        }
+      }
+
       io.emit("roundResult", { blindPlayer, mostVoted });
+      io.emit("scores", scores);
     }
   });
 
