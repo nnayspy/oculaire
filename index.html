@@ -43,13 +43,9 @@
       const avatar = document.getElementById("avatar").value;
 
       if (!name) return alert("Entre un pseudo !");
-      if (localStorage.getItem("oculaire_joined")) {
-        alert("Tu as déjà rejoint la partie depuis cet appareil.");
-        return;
-      }
-
       socket.emit("join", { name, avatar });
-      localStorage.setItem("oculaire_joined", "true");
+      localStorage.setItem("oculaire_name", name);
+      localStorage.setItem("oculaire_avatar", avatar);
       document.getElementById("login").style.display = "none";
     }
 
@@ -58,6 +54,17 @@
         "<h3>Joueurs connectés :</h3>" +
         players.map(p => `<div>${p.avatar} ${p.name}</div>`).join("");
     });
+
+    // Si le joueur s'était déjà connecté : auto-reconnexion
+    window.onload = () => {
+      const savedName = localStorage.getItem("oculaire_name");
+      const savedAvatar = localStorage.getItem("oculaire_avatar");
+      if (savedName && savedAvatar) {
+        document.getElementById("pseudo").value = savedName;
+        document.getElementById("avatar").value = savedAvatar;
+        join();
+      }
+    };
   </script>
 </body>
 </html>
