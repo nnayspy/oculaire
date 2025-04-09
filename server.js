@@ -1,17 +1,27 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(__dirname));
+app.use('/scenes', express.static(path.join(__dirname, 'scenes')));
 
 let players = [];
 let currentScene = null;
 let blindPlayer = null;
-let votes = {}; // stocker les votes
+let votes = {};
+
+function getRandomScene() {
+  const scenesPath = path.join(__dirname, 'scenes');
+  const files = fs.readdirSync(scenesPath).filter(file => file.endsWith(".jpg") || file.endsWith(".png"));
+  if (files.length === 0) return null;
+  return "scenes/" + files[Math.floor(Math.random() * files.length)];
+}
 
 io.on("connection", (socket) => {
   console.log("✅ Connexion :", socket.id);
@@ -36,18 +46,17 @@ io.on("connection", (socket) => {
   socket.on("startRound", () => {
     if (players.length < 3) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
-    currentScene = "scene1.jpg"; // à remplacer par une logique d'aléatoire plus tard
-    votes = {}; // reset votes
+    currentScene = getRandomScene();
+    votes = {};
     io.emit("newRound", { blindPlayer, currentScene });
   });
 
   socket.on("vote", (targetName) => {
     const voter = players.find(p => p.id === socket.id);
-    if (!voter || voter.name === blindPlayer) return; // blind can't vote
+    if (!voter || voter.name === blindPlayer) return;
     votes[voter.name] = targetName;
 
     if (Object.keys(votes).length === players.length - 1) {
-      // tous les votes sont arrivés
       let results = {};
       for (let v of Object.values(votes)) {
         results[v] = (results[v] || 0) + 1;
