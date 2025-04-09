@@ -34,10 +34,15 @@
       <option>🐱</option>
       <option>🤖</option>
     </select>
+    <br>
+    <label for="rounds">Nombre de manches :</label>
+    <input id="rounds" type="number" min="1" max="20" value="5" />
+    <br>
     <button onclick="join()">Rejoindre</button>
   </div>
 
   <div id="players"></div>
+  <div id="roundInfo"></div>
   <button id="startBtn" onclick="startRound()" style="display:none">Démarrer la manche</button>
   <div id="scene"></div>
   <div id="hintZone"></div>
@@ -49,13 +54,20 @@
     const socket = io();
     let hasJoined = false;
     let playerName = null;
+    let currentRound = 0;
+    let maxRounds = 0;
 
     function join() {
       if (hasJoined) return;
       const name = document.getElementById("pseudo").value;
       const avatar = document.getElementById("avatar").value;
+      const rounds = parseInt(document.getElementById("rounds").value, 10);
+
       if (!name) return alert("Entre un pseudo !");
+      if (isNaN(rounds) || rounds < 1) return alert("Nombre de manches invalide.");
+
       socket.emit("join", { name, avatar });
+      socket.emit("setMaxRounds", rounds);
       document.getElementById("login").style.display = "none";
       hasJoined = true;
       playerName = name;
@@ -87,7 +99,11 @@
       }
     });
 
-    socket.on("newRound", ({ blindPlayer, currentScene }) => {
+    socket.on("newRound", ({ blindPlayer, currentScene, round, maxRounds: maxR }) => {
+      currentRound = round;
+      maxRounds = maxR;
+
+      document.getElementById("roundInfo").innerHTML = `<h3>Manche ${currentRound} / ${maxRounds}</h3>`;
       document.getElementById("scene").innerHTML = `<h2>Voici l'image :</h2><img src="${currentScene}">`;
       document.getElementById("hintZone").innerHTML =
         `<input id="hintInput" placeholder="Ton indice..." />
@@ -105,9 +121,16 @@
         Object.keys(hints).map(name => `<button onclick="vote('${name}')">${name}</button>`).join(" ");
     });
 
-    socket.on("roundResult", ({ blindPlayer, mostVoted }) => {
+    socket.on("roundResult", ({ blindPlayer, mostVoted, round, maxRounds }) => {
       document.getElementById("voteZone").innerHTML +=
         `<p><strong>Résultat :</strong> ${mostVoted} a été désigné. L'aveugle était : ${blindPlayer}.</p>`;
+
+      if (round < maxRounds) {
+        document.getElementById("voteZone").innerHTML +=
+          `<button onclick="startRound()">Manche suivante</button>`;
+      } else {
+        document.getElementById("voteZone").innerHTML += "<h2>🎉 Partie terminée !</h2>";
+      }
     });
 
     socket.on("scores", (scores) => {
