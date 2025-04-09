@@ -39,6 +39,7 @@
   <div id="players"></div>
   <button id="startBtn" onclick="startRound()" style="display:none">Démarrer la manche</button>
   <div id="scene"></div>
+  <div id="voteZone"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -79,14 +80,17 @@
 
     socket.on("newRound", ({ blindPlayer, currentScene }) => {
       const sceneDiv = document.getElementById("scene");
+      const voteZone = document.getElementById("voteZone");
+      voteZone.innerHTML = "";
       if (playerName === blindPlayer) {
         sceneDiv.innerHTML = "<h2>Tu es l'aveugle 👁️ ! Tu ne vois pas la scène.</h2>";
       } else {
         sceneDiv.innerHTML = `<h2>Voici la scène :</h2><img src="${currentScene}" alt="Scène">`;
       }
+
+      socket.emit("playersRequest"); // refresh players list for voting
     });
 
-    // Auto-reconnexion uniquement si le joueur est encore listé côté serveur
     socket.on("players", (players) => {
       const savedName = localStorage.getItem("oculaire_name");
       const savedAvatar = localStorage.getItem("oculaire_avatar");
@@ -96,6 +100,28 @@
         document.getElementById("avatar").value = savedAvatar;
         join();
       }
+    });
+
+    socket.on("newRound", ({ blindPlayer, currentScene }) => {
+      const voteZone = document.getElementById("voteZone");
+      if (playerName !== blindPlayer) {
+        socket.on("players", (players) => {
+          voteZone.innerHTML = "<h3>Votez pour l'aveugle :</h3>" +
+            players
+              .filter(p => p.name !== playerName)
+              .map(p => `<button onclick=\"vote('${p.name}')\">${p.name}</button>`)
+              .join(" ");
+        });
+      }
+    });
+
+    function vote(name) {
+      socket.emit("vote", name);
+      document.getElementById("voteZone").innerHTML = "<p>Vote envoyé !</p>";
+    }
+
+    socket.on("roundResult", ({ blindPlayer, mostVoted }) => {
+      document.getElementById("scene").innerHTML += `<p><strong>Résultat :</strong> ${mostVoted} a été désigné comme aveugle.</p>`;
     });
   </script>
 </body>
