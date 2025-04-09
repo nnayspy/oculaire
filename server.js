@@ -1,4 +1,3 @@
-// --- server.js ---
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -39,13 +38,14 @@ io.on("connection", (socket) => {
   console.log("✅ Connexion :", socket.id);
 
   socket.on("join", (data) => {
-    const existing = players.find(p => p.name === data.name);
-    if (existing) {
-      existing.id = socket.id;
-      existing.avatar = data.avatar;
-    } else {
-      players.push({ id: socket.id, name: data.name, avatar: data.avatar });
+    let player = players.find(p => p.name === data.name);
+    if (!player) {
+      player = { id: socket.id, name: data.name, avatar: data.avatar, eliminated: false };
+      players.push(player);
       scores[data.name] = 0;
+    } else {
+      player.id = socket.id;
+      player.avatar = data.avatar;
     }
     console.log(`👤 ${data.name} est connecté`);
     io.emit("players", players);
@@ -53,7 +53,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRound", () => {
-    console.log("📢 startRound reçu");
     if (players.length < 3 || scenes.length === 0) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
     const sceneBase = scenes[Math.floor(Math.random() * scenes.length)];
@@ -62,66 +61,65 @@ io.on("connection", (socket) => {
     hints = {};
     votes = {};
 
-    for (const player of players) {
+    for (const player of players.filter(p => !p.eliminated)) {
       const image = player.name === blindPlayer ? selected.blind : selected.normal;
-      io.to(player.id).emit("newRound", {
-        blindPlayer,
-        currentScene: image
-      });
+      io.to(player.id).emit("newRound", { blindPlayer, currentScene: image });
     }
   });
 
   socket.on("submitHint", (hint) => {
     const player = players.find(p => p.id === socket.id);
-    if (!player) return;
+    if (!player || player.eliminated) return;
     hints[player.name] = hint;
 
-    if (Object.keys(hints).length === players.length) {
+    const activePlayers = players.filter(p => !p.eliminated);
+    if (Object.keys(hints).length === activePlayers.length) {
       io.emit("allHints", hints);
     }
   });
 
   socket.on("vote", (targetName) => {
     const voter = players.find(p => p.id === socket.id);
-    if (!voter || voter.name === blindPlayer || voter.eliminated) return;
+    if (!voter || voter.eliminated) return;
     votes[voter.name] = targetName;
 
     const activePlayers = players.filter(p => !p.eliminated);
-    const requiredVotes = activePlayers.length - 1;
-
-    if (Object.keys(votes).length === requiredVotes) {
+    if (Object.keys(votes).length === activePlayers.length - 1) {
       let results = {};
-      for (let v of Object.values(votes)) {
-        results[v] = (results[v] || 0) + 1;
-      }
-      const mostVoted = Object.entries(results).sort((a, b) => b[1] - a[1])[0][0];
+      Object.values(votes).forEach(v => results[v] = (results[v] || 0) + 1);
 
-      if (mostVoted === blindPlayer) {
-        for (let voterName of Object.keys(votes)) {
-          scores[voterName] += 1;
-        }
-      } else {
-        if (scores[blindPlayer] !== undefined) {
-          scores[blindPlayer] += 2;
-        }
+      const sorted = Object.entries(results).sort((a, b) => b[1] - a[1]);
+      const [topName, topVotes] = sorted[0];
+      const tied = sorted.filter(([_, v]) => v === topVotes).length > 1;
+      const majority = Math.floor(activePlayers.length / 2) + 1;
+
+      if (tied || topVotes < majority) {
+        io.emit("tieOrNoMajority", { voteCounts: results });
+        hints = {};
+        votes = {};
+        return;
       }
 
-      io.emit("roundResult", { blindPlayer, mostVoted, voteCounts: results });
-      io.emit("scores", scores);
+      players.find(p => p.name === topName).eliminated = true;
+      io.emit("roundResult", { eliminated: topName, voteCounts: results });
+      votes = {};
+
+      if (topName === blindPlayer) {
+        activePlayers.forEach(p => { if (p.name !== blindPlayer) scores[p.name] += 1; });
+        io.emit("gameOver", { winner: "civils", scores });
+      } else if (activePlayers.length <= 3) {
+        scores[blindPlayer] += 2;
+        io.emit("gameOver", { winner: "undercover", scores });
+      }
     }
   });
 
   socket.on("disconnect", () => {
-    const index = players.findIndex(p => p.id === socket.id);
-    if (index !== -1) {
-      console.log("❌ Déconnexion de :", players[index].name);
-      players.splice(index, 1);
-      io.emit("players", players);
-    }
+    players = players.filter(p => p.id !== socket.id);
+    io.emit("players", players);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
+server.listen(3000, () => {
+  console.log(`🚀 Serveur lancé sur http://localhost:3000`);
 });
