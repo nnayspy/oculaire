@@ -20,14 +20,18 @@
 </head>
 <body>
   <h1>Oculaire</h1>
-  <input id="pseudo" placeholder="Ton pseudo" />
-  <select id="avatar">
-    <option>😎</option>
-    <option>👽</option>
-    <option>🐱</option>
-    <option>🤖</option>
-  </select>
-  <button onclick="join()">Rejoindre</button>
+
+  <div id="login">
+    <input id="pseudo" placeholder="Ton pseudo" />
+    <select id="avatar">
+      <option>😎</option>
+      <option>👽</option>
+      <option>🐱</option>
+      <option>🤖</option>
+    </select>
+    <button onclick="join()">Rejoindre</button>
+  </div>
+
   <div id="players"></div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -37,11 +41,19 @@
     function join() {
       const name = document.getElementById("pseudo").value;
       const avatar = document.getElementById("avatar").value;
+
       if (!name) return alert("Entre un pseudo !");
+      if (localStorage.getItem("oculaire_joined")) {
+        alert("Tu as déjà rejoint la partie depuis cet appareil.");
+        return;
+      }
+
       socket.emit("join", { name, avatar });
+      localStorage.setItem("oculaire_joined", "true");
+      document.getElementById("login").style.display = "none";
     }
 
-    socket.on("players", players => {
+    socket.on("players", (players) => {
       document.getElementById("players").innerHTML =
         "<h3>Joueurs connectés :</h3>" +
         players.map(p => `<div>${p.avatar} ${p.name}</div>`).join("");
