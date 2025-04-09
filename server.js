@@ -12,17 +12,26 @@ app.use(express.static(__dirname));
 app.use('/scenes', express.static(path.join(__dirname, 'scenes')));
 
 let players = [];
-let currentScene = null;
+let scenes = []; // liste des scènes dispos en couples
 let blindPlayer = null;
 let votes = {};
-let scores = {}; // Nouveau : stockage des scores
+let scores = {}; // stockage des scores
+let hints = {}; // stockage des indices
 
-function getRandomScene() {
+function loadScenePairs() {
   const scenesPath = path.join(__dirname, 'scenes');
-  const files = fs.readdirSync(scenesPath).filter(file => file.endsWith(".jpg") || file.endsWith(".png"));
-  if (files.length === 0) return null;
-  return "scenes/" + files[Math.floor(Math.random() * files.length)];
+  const files = fs.readdirSync(scenesPath).filter(file => file.endsWith("_a.jpg") || file.endsWith("_a.png"));
+  return files.map(f => f.replace("_a", ""));
 }
+
+function getScenePair(sceneBase) {
+  return {
+    normal: `scenes/${sceneBase}_a.jpg`,
+    blind: `scenes/${sceneBase}_b.jpg`
+  };
+}
+
+scenes = loadScenePairs();
 
 io.on("connection", (socket) => {
   console.log("✅ Connexion :", socket.id);
@@ -38,7 +47,7 @@ io.on("connection", (socket) => {
         name: data.name,
         avatar: data.avatar
       });
-      scores[data.name] = 0; // Initialiser le score à 0
+      scores[data.name] = 0;
     }
 
     console.log(`👤 ${data.name} est connecté`);
@@ -47,11 +56,31 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRound", () => {
-    if (players.length < 3) return;
+    if (players.length < 3 || scenes.length === 0) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
-    currentScene = getRandomScene();
-    votes = {};
-    io.emit("newRound", { blindPlayer, currentScene });
+    const sceneBase = scenes[Math.floor(Math.random() * scenes.length)];
+    const selected = getScenePair(sceneBase);
+
+    hints = {}; // reset indices
+    votes = {}; // reset votes
+
+    for (const player of players) {
+      const image = player.name === blindPlayer ? selected.blind : selected.normal;
+      io.to(player.id).emit("newRound", {
+        blindPlayer,
+        currentScene: image
+      });
+    }
+  });
+
+  socket.on("submitHint", (hint) => {
+    const player = players.find(p => p.id === socket.id);
+    if (!player) return;
+    hints[player.name] = hint;
+
+    if (Object.keys(hints).length === players.length) {
+      io.emit("allHints", hints);
+    }
   });
 
   socket.on("vote", (targetName) => {
@@ -66,14 +95,11 @@ io.on("connection", (socket) => {
       }
       const mostVoted = Object.entries(results).sort((a, b) => b[1] - a[1])[0][0];
 
-      // Mise à jour des scores
       if (mostVoted === blindPlayer) {
-        // Tous les votants ont 1 point
         for (let voterName of Object.keys(votes)) {
           scores[voterName] += 1;
         }
       } else {
-        // L'aveugle marque 2 points
         if (scores[blindPlayer] !== undefined) {
           scores[blindPlayer] += 2;
         }
