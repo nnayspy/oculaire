@@ -32,6 +32,7 @@ function getScenePair(sceneBase) {
 }
 
 scenes = loadScenePairs();
+console.log("📸 Scènes disponibles :", scenes);
 
 io.on("connection", (socket) => {
   console.log("✅ Connexion :", socket.id);
