@@ -1,3 +1,4 @@
+// --- server.js ---
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -20,14 +21,14 @@ let hints = {};
 
 function loadScenePairs() {
   const scenesPath = path.join(__dirname, 'scenes');
-  const files = fs.readdirSync(scenesPath).filter(file => file.endsWith("_a.jpg") || file.endsWith("_a.png"));
-  return files.map(f => f.replace("_a", ""));
+  const files = fs.readdirSync(scenesPath).filter(file => file.endsWith("a.jpg") || file.endsWith("a.png"));
+  return files.map(f => f.replace(/a\.(jpg|png)$/i, ""));
 }
 
 function getScenePair(sceneBase) {
   return {
-    normal: `scenes/${sceneBase}_a.jpg`,
-    blind: `scenes/${sceneBase}_b.jpg`
+    normal: `scenes/${sceneBase}a.jpg`,
+    blind: `scenes/${sceneBase}b.jpg`
   };
 }
 
@@ -43,14 +44,9 @@ io.on("connection", (socket) => {
       existing.id = socket.id;
       existing.avatar = data.avatar;
     } else {
-      players.push({
-        id: socket.id,
-        name: data.name,
-        avatar: data.avatar
-      });
+      players.push({ id: socket.id, name: data.name, avatar: data.avatar });
       scores[data.name] = 0;
     }
-
     console.log(`👤 ${data.name} est connecté`);
     io.emit("players", players);
     io.emit("scores", scores);
@@ -58,7 +54,7 @@ io.on("connection", (socket) => {
 
   socket.on("startRound", () => {
     console.log("📢 startRound reçu");
-    if (players.length < 2 || scenes.length === 0) return;
+    if (players.length < 3 || scenes.length === 0) return;
     blindPlayer = players[Math.floor(Math.random() * players.length)].name;
     const sceneBase = scenes[Math.floor(Math.random() * scenes.length)];
     const selected = getScenePair(sceneBase);
