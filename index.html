@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Oculaire</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #fff;
+      text-align: center;
+      padding-top: 50px;
+    }
+    input, select, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Oculaire</h1>
+  <input id="pseudo" placeholder="Ton pseudo" />
+  <select id="avatar">
+    <option>😎</option>
+    <option>👽</option>
+    <option>🐱</option>
+    <option>🤖</option>
+  </select>
+  <button onclick="join()">Rejoindre</button>
+  <div id="players"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    function join() {
+      const name = document.getElementById("pseudo").value;
+      const avatar = document.getElementById("avatar").value;
+      if (!name) return alert("Entre un pseudo !");
+      socket.emit("join", { name, avatar });
+    }
+
+    socket.on("players", players => {
+      document.getElementById("players").innerHTML =
+        "<h3>Joueurs connectés :</h3>" +
+        players.map(p => `<div>${p.avatar} ${p.name}</div>`).join("");
+    });
+  </script>
+</body>
+</html>
