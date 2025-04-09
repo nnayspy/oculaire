@@ -83,10 +83,13 @@ io.on("connection", (socket) => {
 
   socket.on("vote", (targetName) => {
     const voter = players.find(p => p.id === socket.id);
-    if (!voter || voter.name === blindPlayer) return;
+    if (!voter || voter.name === blindPlayer || voter.eliminated) return;
     votes[voter.name] = targetName;
 
-    if (Object.keys(votes).length === players.length - 1) {
+    const activePlayers = players.filter(p => !p.eliminated);
+    const requiredVotes = activePlayers.length - 1;
+
+    if (Object.keys(votes).length === requiredVotes) {
       let results = {};
       for (let v of Object.values(votes)) {
         results[v] = (results[v] || 0) + 1;
@@ -103,7 +106,7 @@ io.on("connection", (socket) => {
         }
       }
 
-      io.emit("roundResult", { blindPlayer, mostVoted });
+      io.emit("roundResult", { blindPlayer, mostVoted, voteCounts: results });
       io.emit("scores", scores);
     }
   });
