@@ -44,7 +44,8 @@
   </select><br>
   <button onclick="join()">Rejoindre</button>
 </div>
-<div id="players" style="display:none;"><\/div>
+
+<div id="players" style="display:none;"></div>
 <button onclick="startRound()">Démarrer la manche</button>
 <div id="scene"></div>
 <div id="hintZone"></div>
@@ -66,48 +67,52 @@
     }, 5000);
   };
 
-  $1
+  function join() {
+    playerName = document.getElementById('pseudo').value;
+    socket.emit('join', { name: playerName, avatar: document.getElementById('avatar').value });
+    document.getElementById('login').style.display = 'none';
     document.getElementById('players').style.display = 'block';
   }
 
   function startRound() { socket.emit('startRound'); }
 
   socket.on("players", players => {
-    document.getElementById('players').innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated?'(Éliminé)':''}`).join('<br>');
+    document.getElementById('players').innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated ? '(Éliminé)' : ''}`).join('<br>');
   });
 
   socket.on("newRound", ({ currentScene }) => {
-    scene.innerHTML = `<img src="${currentScene}" style="width:300px">`;
-    hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Envoyer indice</button>`;
-    voteZone.innerHTML = '';
+    document.getElementById('scene').innerHTML = `<img src="${currentScene}" style="width:300px">`;
+    document.getElementById('hintZone').innerHTML = `<input id="hintInput"><button onclick="submitHint()">Envoyer indice</button>`;
+    document.getElementById('voteZone').innerHTML = '';
   });
 
   function submitHint() {
-    socket.emit('submitHint', hintInput.value);
-    hintInput.disabled = true;
+    socket.emit('submitHint', document.getElementById('hintInput').value);
+    document.getElementById('hintInput').disabled = true;
   }
 
   socket.on("allHints", hints => {
-    voteZone.innerHTML = Object.entries(hints).map(([name, hint]) => `${name}: ${hint}`).join('<br>');
-    voteZone.innerHTML += "<br>" + Object.keys(hints).filter(n=>n!==playerName).map(n => 
+    document.getElementById('voteZone').innerHTML = Object.entries(hints).map(([name, hint]) => `${name}: ${hint}`).join('<br>');
+    document.getElementById('voteZone').innerHTML += "<br>" + Object.keys(hints).filter(n => n !== playerName).map(n => 
       `<button onclick="vote('${n}')">${n}</button>`).join('');
   });
 
   function vote(name) { socket.emit('vote', name); }
 
   socket.on("roundResult", ({ eliminated, voteCounts }) => {
-    voteZone.innerHTML = eliminated ? `${eliminated} éliminé !` : 'Aucune majorité ! Nouvelle phase d\'indices.';
-    scores.innerHTML = 'Votes: ' + JSON.stringify(voteCounts);
+    document.getElementById('voteZone').innerHTML = eliminated ? `${eliminated} éliminé !` : "Aucune majorité ! Nouvelle phase d'indices.";
+    document.getElementById('scores').innerHTML = 'Votes: ' + JSON.stringify(voteCounts);
   });
 
   socket.on("tieOrNoMajority", () => {
-    hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Nouvel indice</button>`;
+    document.getElementById('hintZone').innerHTML = `<input id="hintInput"><button onclick="submitHint()">Nouvel indice</button>`;
   });
 
   socket.on("gameOver", ({ winner, scores: finalScores }) => {
-    scene.innerHTML = `<h2>Fin de partie! ${winner} gagnent!</h2>`;
-    scores.innerHTML = 'Scores finaux: ' + JSON.stringify(finalScores);
+    document.getElementById('scene').innerHTML = `<h2>Fin de partie! ${winner} gagnent!</h2>`;
+    document.getElementById('scores').innerHTML = 'Scores finaux: ' + JSON.stringify(finalScores);
   });
 </script>
+
 </body>
 </html>
