@@ -50,7 +50,10 @@
   window.onload = () => {
     setTimeout(() => {
       document.getElementById('titleScreen').classList.add('hidden');
-      setTimeout(() => document.getElementById('login').style.display = 'block', 2000);
+      setTimeout(() => {
+        document.getElementById('login').style.display = 'block';
+        document.getElementById('titleScreen').style.display = 'none';
+      }, 2000);
     }, 5000);
   };
 
