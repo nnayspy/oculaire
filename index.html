@@ -4,75 +4,100 @@
   <meta charset="UTF-8">
   <title>Oculaire</title>
   <style>
-    body { font-family: Arial; text-align: center; background: #222; color: #fff; }
+    body { font-family: Arial; text-align: center; background: #222; color: #fff; overflow: hidden; }
     button, input { padding: 8px; margin-top: 10px; }
+    #titleScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(#444, #111);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 50px;
+      opacity: 1;
+      transition: opacity 2s;
+      z-index: 1000;
+    }
+    .hidden { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
-  <h1>Oculaire</h1>
-  <div id="login">
-    <input id="pseudo" placeholder="Pseudo">
-    <select id="avatar">
-      <option>😎</option><option>👽</option><option>🐱</option><option>🤖</option>
-    </select><br>
-    <button onclick="join()">Rejoindre</button>
-  </div>
-  <div id="players"></div>
-  <button onclick="startRound()">Démarrer la manche</button>
-  <div id="scene"></div>
-  <div id="hintZone"></div>
-  <div id="voteZone"></div>
-  <div id="scores"></div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    let playerName;
+<div id="titleScreen">Oculaire</div>
 
-    function join() {
-      playerName = pseudo.value;
-      socket.emit('join', { name: playerName, avatar: avatar.value });
-      login.style.display = 'none';
-    }
+<div id="login" style="display:none;">
+  <input id="pseudo" placeholder="Pseudo">
+  <select id="avatar">
+    <option>😎</option><option>👽</option><option>🐱</option><option>🤖</option>
+  </select><br>
+  <button onclick="join()">Rejoindre</button>
+</div>
+<div id="players"></div>
+<button onclick="startRound()">Démarrer la manche</button>
+<div id="scene"></div>
+<div id="hintZone"></div>
+<div id="voteZone"></div>
+<div id="scores"></div>
 
-    function startRound() { socket.emit('startRound'); }
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let playerName;
 
-    socket.on("players", players => {
-      playersDiv.innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated?'(Éliminé)':''}`).join('<br>');
-    });
+  window.onload = () => {
+    setTimeout(() => {
+      document.getElementById('titleScreen').classList.add('hidden');
+      setTimeout(() => document.getElementById('login').style.display = 'block', 2000);
+    }, 5000);
+  };
 
-    socket.on("newRound", ({ currentScene }) => {
-      scene.innerHTML = `<img src="${currentScene}" style="width:300px">`;
-      hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Envoyer indice</button>`;
-      voteZone.innerHTML = '';
-    });
+  function join() {
+    playerName = pseudo.value;
+    socket.emit('join', { name: playerName, avatar: avatar.value });
+    login.style.display = 'none';
+  }
 
-    function submitHint() {
-      socket.emit('submitHint', hintInput.value);
-      hintInput.disabled = true;
-    }
+  function startRound() { socket.emit('startRound'); }
 
-    socket.on("allHints", hints => {
-      voteZone.innerHTML = Object.entries(hints).map(([name, hint]) => `${name}: ${hint}`).join('<br>');
-      voteZone.innerHTML += "<br>" + Object.keys(hints).filter(n=>n!==playerName).map(n => 
-        `<button onclick="vote('${n}')">${n}</button>`).join('');
-    });
+  socket.on("players", players => {
+    playersDiv.innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated?'(Éliminé)':''}`).join('<br>');
+  });
 
-    function vote(name) { socket.emit('vote', name); }
+  socket.on("newRound", ({ currentScene }) => {
+    scene.innerHTML = `<img src="${currentScene}" style="width:300px">`;
+    hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Envoyer indice</button>`;
+    voteZone.innerHTML = '';
+  });
 
-    socket.on("roundResult", ({ eliminated, voteCounts }) => {
-      voteZone.innerHTML = eliminated ? `${eliminated} éliminé !` : 'Aucune majorité ! Nouvelle phase d\'indices.';
-      scores.innerHTML = 'Votes: ' + JSON.stringify(voteCounts);
-    });
+  function submitHint() {
+    socket.emit('submitHint', hintInput.value);
+    hintInput.disabled = true;
+  }
 
-    socket.on("tieOrNoMajority", () => {
-      hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Nouvel indice</button>`;
-    });
+  socket.on("allHints", hints => {
+    voteZone.innerHTML = Object.entries(hints).map(([name, hint]) => `${name}: ${hint}`).join('<br>');
+    voteZone.innerHTML += "<br>" + Object.keys(hints).filter(n=>n!==playerName).map(n => 
+      `<button onclick="vote('${n}')">${n}</button>`).join('');
+  });
 
-    socket.on("gameOver", ({ winner, scores: finalScores }) => {
-      scene.innerHTML = `<h2>Fin de partie! ${winner} gagnent!</h2>`;
-      scores.innerHTML = 'Scores finaux: ' + JSON.stringify(finalScores);
-    });
-  </script>
+  function vote(name) { socket.emit('vote', name); }
+
+  socket.on("roundResult", ({ eliminated, voteCounts }) => {
+    voteZone.innerHTML = eliminated ? `${eliminated} éliminé !` : 'Aucune majorité ! Nouvelle phase d\'indices.';
+    scores.innerHTML = 'Votes: ' + JSON.stringify(voteCounts);
+  });
+
+  socket.on("tieOrNoMajority", () => {
+    hintZone.innerHTML = `<input id="hintInput"><button onclick="submitHint()">Nouvel indice</button>`;
+  });
+
+  socket.on("gameOver", ({ winner, scores: finalScores }) => {
+    scene.innerHTML = `<h2>Fin de partie! ${winner} gagnent!</h2>`;
+    scores.innerHTML = 'Scores finaux: ' + JSON.stringify(finalScores);
+  });
+</script>
 </body>
 </html>
