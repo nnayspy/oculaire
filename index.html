@@ -35,7 +35,7 @@
   </select><br>
   <button onclick="join()">Rejoindre</button>
 </div>
-<div id="players"></div>
+<div id="players" style="display:none;"><\/div>
 <button onclick="startRound()">Démarrer la manche</button>
 <div id="scene"></div>
 <div id="hintZone"></div>
@@ -57,16 +57,14 @@
     }, 5000);
   };
 
-  function join() {
-    playerName = pseudo.value;
-    socket.emit('join', { name: playerName, avatar: avatar.value });
-    login.style.display = 'none';
+  $1
+    document.getElementById('players').style.display = 'block';
   }
 
   function startRound() { socket.emit('startRound'); }
 
   socket.on("players", players => {
-    playersDiv.innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated?'(Éliminé)':''}`).join('<br>');
+    document.getElementById('players').innerHTML = players.map(p => `${p.avatar} ${p.name} ${p.eliminated?'(Éliminé)':''}`).join('<br>');
   });
 
   socket.on("newRound", ({ currentScene }) => {
